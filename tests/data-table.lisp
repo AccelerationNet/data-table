@@ -105,4 +105,48 @@
     (assert-equal 'e (data-table-value dts2 :col-idx 1 :row-idx 1))
     (assert-true (data-table-data-compare dts1 man-sub) dts1 man-sub)))
 
+(define-test data-table-alist
+  (let* ((als '(((:a . 1) (:b . 2) (:c . 3))
+                ((:b . 4) (:a . 5) (:c . 6) (:d :not-in-data-table))
+                ((:c . 9) (:a . 8) (:b . 7))
+                ((:b . 10) (:c . 11) (:a . 12)))
+              )
+         (dt (alists-to-data-table als))
+         (als (data-table-to-alists dt)))
+    (assert-equal
+        '(:a :b :c)
+        (column-names dt))
+    (assert-equal '(2 4 7 10)
+        (data-table-value dt :col-name :b))
+    (assert-equal 6
+        (data-table-value dt :col-name :c :row-idx 1))
+    (assert-equal
+        '(((:a . 1) (:b . 2) (:c . 3))
+          ((:a . 5) (:b . 4) (:c . 6))
+          ((:a . 8) (:b . 7)(:c . 9) )
+          ((:a . 12) (:b . 10) (:c . 11)))
+        als)))
+
+(define-test data-table-plist
+  (let* ((pls '(( :a  1 :b  2 :c  3)
+                ( :b  4 :a  5 :c  6 :d :not-in-data-table)
+                ( :c  9 :a  8 :b  7)
+                ( :b  10 :c  11 :a  12)))
+         (dt (plists-to-data-table pls))
+         (pls (data-table-to-plists dt)))
+    (assert-equal '(:a :b :c)
+        (column-names dt))
+    (assert-equal 4 (number-of-rows dt))
+    (assert-equal 3 (number-of-columns dt))
+    (assert-equal '(2 4 7 10)
+        (data-table-value dt :col-name :b))
+    (assert-equal 6
+        (data-table-value dt :col-name :c :row-idx 1))
+    (assert-equal
+        '(( :a  1 :b  2 :c  3)
+          ( :a  5 :b  4 :c  6)
+          ( :a  8 :b  7 :c  9 )
+          ( :a  12 :b  10 :c  11 ))
+        pls)))
+
 (run-tests)

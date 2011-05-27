@@ -9,7 +9,8 @@
    #:sql-escape-column-names! #:sql-escape-column-names #:english->mssql
    #:english->postgres #:ensure-mssql-table-for-data-table #:ensure-postgres-table-for-data-table
    #:ensure-table-for-data-table #:import-data-table-to-mssql #:import-data-table-to-postgres
-   #:homogenous-alists-to-data-table
+   #:alists-to-data-table #:plists-to-data-table
+   #:data-table-to-alists #:data-table-to-plists
    #:make-sub-table #:data-table-data-compare))
 
 (in-package :data-table)
@@ -32,7 +33,8 @@
 	    (T s)))))
 
 (defun plist-keys (pl) (iter (for (k v) on pl by #'cddr) (collect k)))
-(defun plist-values (pl) (iter (for (k v) on pl by #'cddr) (collect v)))
+(defun plist-values (pl &optional keys)
+  (iter (for k in keys) (collect (getf pl k))))
 (defun alist-keys (al) (iter (for (k . v) in al) (collect k)))
 (defun alist-values (al &optional keys (test #'equalp))
   (unless keys (setf keys (alist-keys al)))
@@ -306,14 +308,37 @@
     (finally (setf (rows dt) new-rows)))
   dt)
 
-(defun homogenous-alists-to-data-table (list-of-alists &key (test #'equalp))
+(defun alists-to-data-table (list-of-alists &key (test #'equalp)
+                                            (keys (alist-keys (first list-of-alists))))
   "given a list of alists, (all with the same keys) convert them to a data-table"
   (iter
     (with dt = (make-instance 'data-table))
-    (with keys)
     (for alist in list-of-alists)
-    (when (first-iteration-p)
-      (setf keys (alist-keys alist)
-            (column-names dt) keys ))
     (collect (alist-values alist keys test) into rows)
-    (finally (setf (rows dt) rows) (return dt))))
+    (finally (setf (rows dt) rows
+                   (column-names dt) keys )
+             (return dt))))
+
+(defun plists-to-data-table (list-of-plists &key (keys (plist-keys (first list-of-plists))))
+  (iter (with dt = (make-instance 'data-table))
+    (for pl in list-of-plists)
+    (collect (plist-values pl keys) into rows)
+    (finally (setf (column-names dt) keys
+                   (rows dt) rows)
+             (return dt))))
+
+(defun data-table-to-plists (dt)
+  (iter
+    (with cnames = (column-names dt))
+    (for row in (rows dt))
+    (collect
+        (iter (for c in cnames) (for d in row)
+          (collect c) (collect d)))))
+
+(defun data-table-to-alists (dt)
+  (iter
+    (with cnames = (column-names dt))
+    (for row in (rows dt))
+    (collect
+        (iter (for c in cnames) (for d in row)
+          (collect (cons c d))))))
