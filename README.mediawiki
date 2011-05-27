@@ -1,0 +1,13 @@
+= Data Table = 
+
+A Common Lisp library providing a data-table data-structure that has
+rows of data and column names and types
+
+* Allows reading/writing values by row/column or index
+* Allows combining data-tables as overlapping square regions
+* allows pulling sub tables from a data table
+* conversion from data-tables of strings into data-tables of lisp-values,
+  automatically guessing types if necessary
+
+
+
