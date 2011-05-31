@@ -7,17 +7,18 @@
 
 (in-package data-table.system)
 
-;; This is kinda cludgy but I dont want this lib to absolutely depend on clsql
-;; but I do want more features availble if clsql is around (dates mostly)
-(defmethod asdf:perform :after ((op T) (c (eql (asdf:find-system :clsql))))
-  (pushnew :clsql *features*))
-
 (defsystem :clsql-data-table
   :description "A library providing a data-table class, and useful functionality around this"
   :licence "BSD"
   :version "0.1"
   :components ((:file "clsql-data-table"))
   :depends-on (:iterate :data-table :clsql :collectors))
+
+;; This is kinda cludgy but I dont want this lib to absolutely depend on clsql
+;; but I do want more features availble if clsql is around (dates mostly)
+(defmethod asdf:perform :before ((op asdf:load-op) (c (eql (asdf:find-system :clsql-data-table))))
+  (pushnew :clsql *features*)
+  (asdf:load-system :data-table))
 
 (defmethod asdf:perform ((o asdf:test-op) (c (eql (find-system :clsql-data-table))))
   (asdf:test-system :data-table))

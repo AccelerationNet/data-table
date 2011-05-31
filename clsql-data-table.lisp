@@ -1,15 +1,60 @@
 (in-package :data-table)
 (cl-interpol:enable-interpol-syntax)
 
+(defun exec (command)
+  #+clsql
+  (if clsql-sys:*default-database*
+    (clsql-sys:execute-command command)
+    (warn "No Database (bind clsql-sys:*default-database*) : cant exec ~A" command)))
+
+(defun has-table? (table)
+  #+clsql
+  (clsql-sys:table-exists-p table))
+
 (defun postgres-db-type-from-lisp-type (lisp-type)
   "Given a postgres type and a modifier, return the clsql type"
   (cond ((subtypep lisp-type 'float) "double precision")
         ((subtypep lisp-type 'integer) "int8")
         ((subtypep lisp-type 'string) "text")
+        #+clsql
         ((or (subtypep lisp-type 'clsql-sys:wall-time)
              (subtypep lisp-type 'clsql-sys:date))
          "timestamp with time zone")
         (T (error "Couldnt map type"))))
+
+(defun mssql-db-type-from-lisp-types (data-table)
+  (iter
+    (for i from 0)
+    (for lisp-type in (column-types data-table))
+    (collect
+        (cond ((subtypep lisp-type 'float) "decimal (19,9)")
+              ((subtypep lisp-type 'integer)
+               (iter
+                 (with thresh = (expt 2 15))
+                 (for int in (data-table-value data-table :col-idx i))
+                 (when int
+                   (minimizing int into min)
+                   (maximizing int into max))
+                 (finally
+                  (return
+                    (if (<= (- thresh) (or min 0) (or max 0) thresh)
+                        "int"
+                        "bigint"
+                        )))))
+              ((subtypep lisp-type 'string)
+               (let ((next-size
+                       (next-highest-power-of-two
+                        (iter (for s in (data-table-value data-table :col-idx i))
+                          (maximizing (length s))))))
+                 (cond
+                   ((< 8000 next-size) "text")
+                   ((< next-size 128) #?"varchar(128)")
+                   (t #?"varchar(${next-size})"))))
+              #+clsql
+              ((or (subtypep lisp-type 'clsql-sys:wall-time)
+                   (subtypep lisp-type 'clsql-sys:date))
+               "datetime")
+              (T (error "Couldnt map type"))))))
 
 (defun sql-escaped-column-names (data-table
                                  &key
@@ -42,43 +87,9 @@
 (defun next-highest-power-of-two (l)
   (expt 2 (+ 1 (truncate (log l 2)))))
 
-(defun mssql-db-type-from-lisp-types (data-table)
-  (iter
-    (for i from 0)
-    (for lisp-type in (column-types data-table))
-    (collect
-        (cond ((subtypep lisp-type 'float) "decimal (19,9)")
-              ((subtypep lisp-type 'integer)
-               (iter
-                 (with thresh = (expt 2 15))
-                 (for int in (data-table-value data-table :col-idx i))
-                 (when int
-                   (minimizing int into min)
-                   (maximizing int into max))
-                 (finally
-                  (return
-                    (if (<= (- thresh) (or min 0) (or max 0) thresh)
-                        "int"
-                        "bigint"
-                        )))))
-              ((subtypep lisp-type 'string)
-               (let ((next-size
-                       (next-highest-power-of-two
-                        (iter (for s in (data-table-value data-table :col-idx i))
-                          (maximizing (length s))))))
-                 (cond
-                   ((< 8000 next-size) "text")
-                   ((< next-size 128) #?"varchar(128)")
-                   (t #?"varchar(${next-size})"))))
-              ((or (subtypep lisp-type 'clsql-sys:wall-time)
-                   (subtypep lisp-type 'clsql-sys:date))
-               "datetime")
-              (T (error "Couldnt map type"))))))
-
 (defun ensure-mssql-table-for-data-table (data-table table-name
                                           &key (should-have-serial-id "Id")
-                                          excluded-columns
-                                          (database clsql-sys:*default-database*))
+                                          excluded-columns)
   (let* ((dt data-table)
          (sql-types (mssql-db-type-from-lisp-types data-table))
          (cmd
@@ -90,10 +101,8 @@
                (unless (member c excluded-columns :test #'string-equal)
                  (body (format nil "~a ~a" c type))))
              #?"CREATE TABLE dbo.${table-name} ( ${(body)} );")))
-    (if database
-        (unless (clsql-sys:table-exists-p table-name)
-          (clsql-sys:execute-command cmd))
-        (warn "No Database, skipping creating table"))
+    (unless (has-table? table-name)
+      (exec cmd))
     cmd))
 
 
@@ -111,7 +120,7 @@
                      (unless (member c excluded-columns :test #'string-equal)
                        (body (format nil "~a ~a" c (postgres-db-type-from-lisp-type type)))))
                    #?"CREATE TABLE ${schema}.${table-name} ( ${(body)} );")))
-        (clsql-sys:execute-command cmd)))))
+        (exec cmd)))))
 
 (defun import-data-table-to-postgres (data-table table-name
                                       &key (schema "public") excluded-columns
@@ -125,7 +134,7 @@
                     (for c in (column-names data-table))
                     (unless (member c excluded-columns :test #'string-equal)
                       (collect (format-value-for-postgres d)))))
-      (clsql-sys:execute-command
+      (exec
        #?"INSERT INTO ${schema}.${table-name} (@{ cols }) VALUES ( @{data} )"))))
 
 (defun import-data-table-to-mssql (data-table table-name &key excluded-columns)
@@ -137,5 +146,5 @@
                     (for c in (column-names data-table))
                     (unless (member c excluded-columns :test #'string-equal)
                       (collect (format-value-for-database d)))))
-      (clsql-sys:execute-command
+      (exec
        #?"INSERT INTO dbo.${table-name} (@{ cols }) VALUES ( @{data} )"))))
