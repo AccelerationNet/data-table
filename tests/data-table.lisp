@@ -8,11 +8,11 @@
    'data-table
    :column-names '("first name" "last name" "job title" "number of hours" "id")
    :rows '(("Russ" "Tyndall" "Software Developer" "26.2" "1")
-          ("Adam" "Smith" "Economist" "37.5" "2")
-          ("John" "Doe" "Anonymous Human" "42.1" "3")
-          ("Chuck" "Darwin" "Natural Philosipher" "17.68" "4")
-          ("Bill" "Shakespear" "Bard" "12.2" "5")
-          ("James" "Kirk" "Starship Captain" "13.1" "6"))))
+           ("Adam" "Smith" "Economist" "37.5" "2")
+           ("John" "Doe" "Anonymous Human" "42.1" "3")
+           ("Chuck" "Darwin" "Natural Philosipher" "17.68" "4")
+           ("Bill" "Shakespear" "Bard" "12.2" "5")
+           ("James" "Kirk" "Starship Captain" "13.1" "6"))))
 
 (define-test data-table-types
   (let ((dt (test-data-table)))
@@ -43,6 +43,13 @@
         (data-table-value dt :col-idx 1 :row-idx 0) dt)
     ))
 
+(define-test data-table-value-manip2
+  (let ((dt (test-data-table)))
+    (setf (data-table-value dt :col-idx 3 :row-idx 1) 3)
+    (assert-equal 3 (data-table-value dt :col-idx 3 :row-idx 1))
+    (assert-equal 5 (length (data-table-value dt :row-idx 1)))
+    ))
+
 (define-test data-table-value-overlaying
   (let ((dt-targ (make-instance 'data-table))
         (dt-copy1 (make-instance 'data-table
@@ -65,7 +72,7 @@
     (assert-true 5 (number-of-columns dt-targ))
     (assert-true 5 (number-of-rows dt-targ))
 
-    (fill-in-missing-cells dt-targ)
+    ;; (fill-in-missing-cells dt-targ)
 ;;  make sure we have a square data-table again
 ;;    0: (NIL NIL NIL NIL NIL)
 ;;    1: (NIL "a" "b" NIL NIL)
@@ -73,6 +80,8 @@
 ;;    3: ("1" "2" "c" "d" "2")
 ;;    4: ("3" "4" NIL "3" "4")
 
+    (iter (for row in (rows dt-targ))
+      (assert-eql 5 (length row)))
     ;; Convert our random strings into types we can see
     (coerce-data-table-of-strings-to-types dt-targ)
     (assert-equal '(integer string string string integer)
@@ -149,4 +158,3 @@
           ( :a  12 :b  10 :c  11 ))
         pls)))
 
-(run-tests)

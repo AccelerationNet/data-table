@@ -11,50 +11,14 @@
   #+clsql
   (clsql-sys:table-exists-p table))
 
-(defun postgres-db-type-from-lisp-type (lisp-type)
-  "Given a postgres type and a modifier, return the clsql type"
-  (cond ((subtypep lisp-type 'float) "double precision")
-        ((subtypep lisp-type 'integer) "int8")
-        ((subtypep lisp-type 'string) "text")
-        #+clsql
-        ((or (subtypep lisp-type 'clsql-sys:wall-time)
-             (subtypep lisp-type 'clsql-sys:date))
-         "timestamp with time zone")
-        (T (error "Couldnt map type"))))
 
-(defun mssql-db-type-from-lisp-types (data-table)
-  (iter
-    (for i from 0)
-    (for lisp-type in (column-types data-table))
-    (collect
-        (cond ((subtypep lisp-type 'float) "decimal (19,9)")
-              ((subtypep lisp-type 'integer)
-               (iter
-                 (with thresh = (expt 2 15))
-                 (for int in (data-table-value data-table :col-idx i))
-                 (when int
-                   (minimizing int into min)
-                   (maximizing int into max))
-                 (finally
-                  (return
-                    (if (<= (- thresh) (or min 0) (or max 0) thresh)
-                        "int"
-                        "bigint"
-                        )))))
-              ((subtypep lisp-type 'string)
-               (let ((next-size
-                       (next-highest-power-of-two
-                        (iter (for s in (data-table-value data-table :col-idx i))
-                          (maximizing (length s))))))
-                 (cond
-                   ((< 8000 next-size) "text")
-                   ((< next-size 128) #?"varchar(128)")
-                   (t #?"varchar(${next-size})"))))
-              #+clsql
-              ((or (subtypep lisp-type 'clsql-sys:wall-time)
-                   (subtypep lisp-type 'clsql-sys:date))
-               "datetime")
-              (T (error "Couldnt map type"))))))
+(defmethod get-data-table ( query &key auto-type )
+  "When Auto-type is true it will work to ensure everything is in a reasonable data-type and document what type that is"
+  (multiple-value-bind (rows colnames) (clsql:query query :flatp T)
+    (let ((dt (make-instance 'data-table :rows rows :column-names colnames )))
+      (when auto-type
+	(coerce-data-table-of-strings-to-types dt))
+      dt)))
 
 (defun sql-escaped-column-names (data-table
                                  &key

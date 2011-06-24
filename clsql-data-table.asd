@@ -12,13 +12,13 @@
   :licence "BSD"
   :version "0.1"
   :components ((:file "clsql-data-table"))
-  :depends-on (:iterate :data-table :clsql :collectors))
+  :depends-on (:iterate :clsql :clsql-helper :collectors :data-table))
 
-;; This is kinda cludgy but I dont want this lib to absolutely depend on clsql
-;; but I do want more features availble if clsql is around (dates mostly)
-(defmethod asdf:perform :before ((op asdf:load-op) (c (eql (asdf:find-system :clsql-data-table))))
-  (pushnew :clsql *features*)
-  (asdf:load-system :data-table))
+;; just incase we loaded data-table before clsql
+;; (defmethod asdf:perform :before ((op asdf:load-op)
+;;      (c (eql (asdf:find-system :clsql-data-table))))
+;;  (asdf:compile-system :data-table)
+;;  (asdf:load-system :data-table))
 
 (defmethod asdf:perform ((o asdf:test-op) (c (eql (find-system :clsql-data-table))))
   (asdf:test-system :data-table))

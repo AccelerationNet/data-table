@@ -16,6 +16,12 @@
 (in-package :data-table)
 (cl-interpol:enable-interpol-syntax)
 
+#.(cl:when (cl:find-package :clsql)
+    (unless (find :clsql *features*)
+      (cl:push :clsql *features*)
+      (asdf:load-system :clsql-helper))
+    nil)
+
 ;; Common utils
 (defparameter +common-white-space-trimbag+
   '(#\space #\newline #\return #\tab #\no-break_space))
@@ -105,6 +111,10 @@
 
 (defun %insert-value-in-list ( row index value )
   "build a new data row by splicing a value into the existing row"
+  '(cond
+    ((> (length row) index)
+     (nconc (subseq row 0 index) (cons value (nthcdr index row))))
+    )
   (nconc (subseq row 0 index) (cons value (nthcdr index row))))
 
 (defmethod (setf data-table-value) (new (dt data-table) &key col-name row-idx col-idx)
@@ -125,13 +135,12 @@
       ((and col-idx row-idx)
        (ensure-rows)
        (let ((row (elt (rows dt) row-idx)))
-              (setf (elt (rows dt) row-idx)
-                    (iter (for i upfrom 0)
-                          (for (d . rest) first row then rest)
-                          (while (or d rest (<= i col-idx)))
-                          (if (eql i col-idx)
-                              (collect new)
-                              (collect d))))))
+         (setf (elt (rows dt) row-idx)
+               (iter (for i from 0 below (max (number-of-columns dt)))
+                 (for (d . rest) first row then rest)
+                 (if (eql i col-idx)
+                     (collect new)
+                     (collect d))))))
       (row-idx
        (ensure-rows)
        (setf (elt (rows dt) row-idx) (alexandria:ensure-list new)))
@@ -166,14 +175,27 @@
           (iter (for d1 in r1) (for d2 in r2)
             (always (funcall test (funcall key d1) (funcall key d2))))))))
 
-
-(defmethod overlay-region ((new data-table) (dt data-table) &key row-idx col-idx)
+(defmethod overlay-region ((new data-table) (dt data-table) &key (row-idx 0) (col-idx 0))
   " puts all values from new-dt into dt starting at row-idx col-idx"
+  ;; square the cols
+  (iter (for i from (number-of-columns dt)
+         below (+ (or col-idx 0) (number-of-columns new)))
+    (add-column dt nil nil 'string i))
+
+  ;; square the rows
+  (setf
+   (rows dt)
+   (nconc (rows dt)
+          (iter (with nr = (number-of-rows dt))
+            (with targ = (+ row-idx (number-of-rows new)))
+            (while (< nr targ))
+            (incf nr)
+            (collect (make-list (number-of-columns dt))))))
   (iter (for row in (rows new))
-        (for new-r first row-idx then (+ 1 new-r))
-        (iter (for d in row)
-              (for new-c first col-idx then (+ 1 new-c))
-              (setf (data-table-value dt :col-idx new-c :row-idx new-r) d))))
+    (for new-r first row-idx then (+ 1 new-r))
+    (iter (for d in row)
+      (for new-c first col-idx then (+ 1 new-c))
+      (setf (data-table-value dt :col-idx new-c :row-idx new-r) d))))
 
 (defmethod fill-in-missing-cells ((dt data-table) &optional missing-value )
   "Ensures that the data table is square and that every column has the same number of rows
@@ -218,7 +240,7 @@
             (setf current (type-of val)))
           (when (and val (stringp val) (trim-and-nullify val))
             (let* ((val (or #+clsql
-                            (adwutils:convert-to-clsql-datetime val)
+                            (clsql-helper:convert-to-clsql-datetime val)
                             (ignore-errors (parse-integer val))
                             (relaxed-parse-float val)
                             val))
@@ -244,7 +266,8 @@
   (cond ((subtypep type 'float) (relaxed-parse-float d))
         ((subtypep type 'integer) (parse-integer d))
         #+clsql
-        ((subtypep type 'clsql-sys:wall-time) (convert-to-clsql-datetime d))
+        ((subtypep type 'clsql-sys:wall-time)
+         (clsql-helper:convert-to-clsql-datetime d))
         ((subtypep type 'string)
          (if (= 0 (length d)) nil d))
         (T (error "data-table-coerce doesnt support coersion of ~s to the type ~a" d type))))
@@ -284,15 +307,17 @@
    as we started with "
   (iter
     (with type-specs = (column-types dt))
+    (with nc = (number-of-columns dt))
     (with names = (column-names dt))
-    (for i from 0 below (number-of-columns dt))
+    (for i from 0 below (max nc (+ 1 index)))
     (for (n1 . rest-names) = names)
     (for (t1 . rest-types) = type-specs)
     (when (= index i)
       (collect name into r-cols)
       (collect type into r-types))
-    (collect n1 into r-cols)
-    (collect t1 into r-types)
+    (unless (>= i nc)
+      (collect n1 into r-cols)
+      (collect t1 into r-types))
     (setf type-specs rest-types names rest-names)
     (finally
      (setf (column-names dt) r-cols)
