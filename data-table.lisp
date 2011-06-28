@@ -11,16 +11,11 @@
    #:ensure-table-for-data-table #:import-data-table-to-mssql #:import-data-table-to-postgres
    #:alists-to-data-table #:plists-to-data-table
    #:data-table-to-alists #:data-table-to-plists
-   #:make-sub-table #:data-table-data-compare))
+   #:make-sub-table #:data-table-data-compare
+   #:get-data-table))
 
 (in-package :data-table)
 (cl-interpol:enable-interpol-syntax)
-
-#.(cl:when (cl:find-package :clsql)
-    (unless (find :clsql *features*)
-      (cl:push :clsql *features*)
-      (asdf:load-system :clsql-helper))
-    nil)
 
 ;; Common utils
 (defparameter +common-white-space-trimbag+
@@ -230,6 +225,16 @@
         ((subtypep complex-type 'string) 'string)
         (T complex-type)))
 
+(defun maybe-apply (fn &rest args)
+  "Call a function, when it exists
+   used to avoid calling clsql code if it does not exits
+  "
+  (let ((fn (etypecase fn
+              (symbol
+               (handler-case (fdefinition fn)
+                 (undefined-function ()))))))
+    (when fn (apply fn args))))
+
 (defun guess-types-for-data-table (data-table)
   (let ((trans (transpose-lists (rows data-table))))
     (iter (for i upfrom 0)
@@ -239,8 +244,7 @@
           (when (and val (not (stringp val)))
             (setf current (type-of val)))
           (when (and val (stringp val) (trim-and-nullify val))
-            (let* ((val (or #+clsql
-                            (clsql-helper:convert-to-clsql-datetime val)
+            (let* ((val (or (maybe-apply '%to-clsql-date val)
                             (ignore-errors (parse-integer val))
                             (relaxed-parse-float val)
                             val))
@@ -265,9 +269,8 @@
     (return-from data-table-coerce d))
   (cond ((subtypep type 'float) (relaxed-parse-float d))
         ((subtypep type 'integer) (parse-integer d))
-        #+clsql
-        ((subtypep type 'clsql-sys:wall-time)
-         (clsql-helper:convert-to-clsql-datetime d))
+        ((maybe-apply 'is-clsql-date-type? type)
+         (%to-clsql-date d))
         ((subtypep type 'string)
          (if (= 0 (length d)) nil d))
         (T (error "data-table-coerce doesnt support coersion of ~s to the type ~a" d type))))

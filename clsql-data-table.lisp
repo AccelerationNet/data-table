@@ -2,13 +2,11 @@
 (cl-interpol:enable-interpol-syntax)
 
 (defun exec (command)
-  #+clsql
   (if clsql-sys:*default-database*
     (clsql-sys:execute-command command)
     (warn "No Database (bind clsql-sys:*default-database*) : cant exec ~A" command)))
 
 (defun has-table? (table)
-  #+clsql
   (clsql-sys:table-exists-p table))
 
 
@@ -47,6 +45,13 @@
   (setf (column-names dt)
         (sql-escaped-column-names
          dt :transform transform)))
+
+(defmethod is-clsql-date-type? (type)
+  (or (subtypep type 'clsql-sys:wall-time)
+      (subtypep type 'clsql-sys:date)))
+
+(defmethod %to-clsql-date (val)
+  (clsql-helper:convert-to-clsql-datetime val))
 
 (defun next-highest-power-of-two (l)
   (expt 2 (+ 1 (truncate (log l 2)))))
@@ -97,7 +102,7 @@
       (for data = (iter (for d in row)
                     (for c in (column-names data-table))
                     (unless (member c excluded-columns :test #'string-equal)
-                      (collect (format-value-for-postgres d)))))
+                      (collect (clsql-helper:format-value-for-database d)))))
       (exec
        #?"INSERT INTO ${schema}.${table-name} (@{ cols }) VALUES ( @{data} )"))))
 
@@ -109,6 +114,6 @@
       (for data = (iter (for d in row)
                     (for c in (column-names data-table))
                     (unless (member c excluded-columns :test #'string-equal)
-                      (collect (format-value-for-database d)))))
+                      (collect (clsql-helper:format-value-for-database d)))))
       (exec
        #?"INSERT INTO dbo.${table-name} (@{ cols }) VALUES ( @{data} )"))))
