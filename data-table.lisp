@@ -165,7 +165,7 @@
 (defmethod data-table-data-compare (dt1 dt2 &key (test #'equalp) (key #'identity))
   "tries to comapre the data in two data-tables"
   (and (eql (number-of-rows dt1) (number-of-rows dt2))
-       (iter (for r1 in dt1) (for r2 in dt2)
+       (iter (for r1 in (rows dt1)) (for r2 in (rows dt2))
          (always
           (iter (for d1 in r1) (for d2 in r2)
             (always (funcall test (funcall key d1) (funcall key d2))))))))
