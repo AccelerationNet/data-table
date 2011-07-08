@@ -56,11 +56,24 @@
 (defun next-highest-power-of-two (l)
   (expt 2 (+ 1 (truncate (log l 2)))))
 
+(defun mssql-db-types-for-data-table (dt)
+  (iter (for type in (column-types dt))
+    (for i upfrom 0)
+    (collect
+        (if (subtypep type 'string)
+            (iter (for v in (data-table-value dt :col-idx i))
+              (maximizing (next-highest-power-of-two (length v)) into len)
+              (finally (if (< len 8000)
+                           #?"varchar (${len})"
+                           "text")))
+            (clsql-helper:db-type-from-lisp-type type)
+            ))))
+
 (defun ensure-mssql-table-for-data-table (data-table table-name
                                           &key (should-have-serial-id "Id")
                                           excluded-columns)
   (let* ((dt data-table)
-         (sql-types (mssql-db-type-from-lisp-types data-table))
+         (sql-types (mssql-db-types-for-data-table data-table))
          (cmd
            (collectors:with-string-builder (body :delimiter #?",\n  ")
              (when should-have-serial-id
@@ -87,9 +100,19 @@
                    (iter (for type in (column-types dt))
                      (for c in (column-names dt))
                      (unless (member c excluded-columns :test #'string-equal)
-                       (body (format nil "~a ~a" c (postgres-db-type-from-lisp-type type)))))
+                       (body (format nil "~a ~a" c (clsql-helper:db-type-from-lisp-type type)))))
                    #?"CREATE TABLE ${schema}.${table-name} ( ${(body)} );")))
         (exec cmd)))))
+
+(defun ensure-table-for-data-table (data-table table-name &rest keys
+                                    &key should-have-serial-id schema
+                                    excluded-columns)
+  (declare (ignore should-have-serial-id schema excluded-columns))
+  (apply
+   (ecase (clsql-sys::database-underlying-type clsql-sys:*default-database*)
+     (:mssql #'ensure-mssql-table-for-data-table)
+     (:postgresql #'ensure-postgres-table-for-data-table))
+   data-table table-name keys))
 
 (defun import-data-table-to-postgres (data-table table-name
                                       &key (schema "public") excluded-columns
@@ -117,3 +140,12 @@
                       (collect (clsql-helper:format-value-for-database d)))))
       (exec
        #?"INSERT INTO dbo.${table-name} (@{ cols }) VALUES ( @{data} )"))))
+
+(defun import-data-table (data-table table-name excluded-columns)
+  (ecase (clsql-sys::database-underlying-type clsql-sys:*default-database*)
+    (:mssql
+     (import-data-table-to-mssql
+      data-table table-name :excluded-columns excluded-columns))
+    (:postgresql
+     (import-data-table-to-postgres
+      data-table table-name :excluded-columns excluded-columns))))

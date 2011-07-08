@@ -14,12 +14,6 @@
   :components ((:file "clsql-data-table"))
   :depends-on (:iterate :clsql :clsql-helper :collectors :data-table))
 
-;; just incase we loaded data-table before clsql
-;; (defmethod asdf:perform :before ((op asdf:load-op)
-;;      (c (eql (asdf:find-system :clsql-data-table))))
-;;  (asdf:compile-system :data-table)
-;;  (asdf:load-system :data-table))
-
 (defmethod asdf:perform ((o asdf:test-op) (c (eql (find-system :clsql-data-table))))
   (asdf:test-system :data-table))
 

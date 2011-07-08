@@ -12,7 +12,13 @@
    #:alists-to-data-table #:plists-to-data-table
    #:data-table-to-alists #:data-table-to-plists
    #:make-sub-table #:data-table-data-compare
-   #:get-data-table))
+   #:get-data-table
+
+   ;; clsql
+   #:ensure-table-for-data-table
+   #:import-data-table
+   #:get-data-table
+   ))
 
 (in-package :data-table)
 (cl-interpol:enable-interpol-syntax)
