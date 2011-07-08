@@ -7,14 +7,14 @@
 
 (in-package data-table.system)
 
-(defsystem :clsql-data-table
+(defsystem :data-table-clsql
   :description "A library providing a data-table class, and useful functionality around this"
   :licence "BSD"
   :version "0.1"
   :components ((:file "clsql-data-table"))
   :depends-on (:iterate :clsql :clsql-helper :collectors :data-table))
 
-(defmethod asdf:perform ((o asdf:test-op) (c (eql (find-system :clsql-data-table))))
+(defmethod asdf:perform ((o asdf:test-op) (c (eql (find-system :data-table-clsql))))
   (asdf:test-system :data-table))
 
 ;; Copyright (c) 2011 Russ Tyndall , Acceleration.net http://www.acceleration.net
