@@ -158,3 +158,31 @@
           ( :a  12 :b  10 :c  11 ))
         pls)))
 
+
+#| OLD TEST not sure if its worth messing with
+(define-test csv-type-inference (csv)
+  (let* ((csv (make-instance
+	       'data-table
+	       :rows
+	       (mapcar
+		#'parse-csv-string
+		'(",foo,432,Bob Smith,423.38, $47.23,8/1/2009"
+		  "11013,bar,433,Ron Jones,443.38, $57.23,8/7/2009"
+		  "3050,bast,434,Bob Smith,433.38, $67.23," 
+		  "P6E6Y4H-209L,burnt,435,Bob Smith,, $77.23,8/11/2009"
+		  "L2708510,butt,436,Bob Smith,473.38, $87.23,8/13/2009"))))
+	 (expected-types '(string string integer string double-float
+			   double-float clsql-sys:wall-time))
+	 (infered-types (guess-types-for-data-table csv)))
+    (assert-equal expected-types infered-types
+		  "Guessing Types")
+    (setf (column-types csv) infered-types)
+    (adwutils::coerce-data-table-of-strings-to-types csv)
+    (iter (for row in (rows csv))
+	  (iter (for col in row)
+		(for type in infered-types)
+		(assert-true (subtypep (type-of col) `(or null, type))
+			     "Col " col  " had wrong type" (type-of col)
+			     " Should have been " `(or null, type))
+		))))
+#|

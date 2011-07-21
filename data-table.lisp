@@ -1,5 +1,5 @@
 (cl:defpackage :data-table
-  (:use :cl :cl-user :iter)
+  (:use :cl :cl-user :iterate)
   (:export
    #:data-table #:column-names #:column-types #:rows
    #:number-of-columns #:number-of-rows
