@@ -241,8 +241,25 @@
                  (undefined-function ()))))))
     (when fn (apply fn args))))
 
+(defvar *guessing-types-sample-size* 1000
+  "how many rows to look at when trying to guess the types for each column of a data table")
+
+(defun sample-rows (rows &key (sample-size *guessing-types-sample-size*))
+  "get a subset of the rows using reservior sampling"
+  (if (< (length rows) sample-size) rows
+      (iter
+        (with sample = (list))
+        (for row in rows)
+        (for i from 0)
+        (if (< i sample-size)
+            (push row sample)
+            (let ((r (random i)))
+              (if (< r sample-size)
+                  (setf (nth r sample) row))))
+        (finally (return sample)))))
+
 (defun guess-types-for-data-table (data-table)
-  (let ((trans (transpose-lists (rows data-table))))
+  (let ((trans (transpose-lists (sample-rows (rows data-table)))))
     (iter (for i upfrom 0)
       (for col in trans)
       (let (current)
