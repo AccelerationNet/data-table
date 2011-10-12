@@ -286,17 +286,31 @@
                                    'string)))))))
         (collect (or current 'string))))))
 
+(define-condition bad-type-guess (error)
+  ((column-type :reader column-type :initarg :column-type)
+   (original-error :reader original-error :initarg :original-error)
+   (value :reader value :initarg :value)))
+
+(defmethod print-object ((o bad-type-guess) (s stream))
+  (print-unreadable-object (o s :type t :identity t)
+    (format s "Error coercing ~a to ~a;  ~a "
+            (value o)
+            (column-type o)
+            (original-error o))))
 
 (defmethod data-table-coerce (d type)
   (when (or (null d) (subtypep (type-of d) type))
     (return-from data-table-coerce d))
-  (cond ((subtypep type 'float) (relaxed-parse-float d))
-        ((subtypep type 'integer) (parse-integer d))
-        ((maybe-apply 'is-clsql-date-type? type)
-         (%to-clsql-date d))
-        ((subtypep type 'string)
-         (if (= 0 (length d)) nil d))
-        (T (error "data-table-coerce doesnt support coersion of ~s to the type ~a" d type))))
+  (handler-case
+      (cond ((subtypep type 'float) (relaxed-parse-float d))
+            ((subtypep type 'integer) (parse-integer d))
+            ((maybe-apply 'is-clsql-date-type? type)
+             (%to-clsql-date d))
+            ((subtypep type 'string)
+             (if (= 0 (length d)) nil d))
+            (T (error "data-table-coerce doesnt support coersion of ~s to the type ~a" d type)))
+    (error (e)
+      (error 'bad-type-guess :value d :column-type type :original-error e))))
 
 (defun ensure-column-data-types (dt)
   "Given lacking data types of data-types only of strings, figure out
@@ -318,13 +332,23 @@
   "Figure out what the data-table-types should be then convert
    all the data in the table to those types"
   (ensure-column-data-types dt)
-  (let ((types (column-types dt)))
-    (when (null (column-types dt)) (setf (column-types dt) types))
-    (setf (rows dt)
-          (iter (for row in (rows dt))
-            (collect (iter (for d in row)
-                       (for ty in types)
-                       (collect (data-table-coerce d ty))))))))
+  (iter
+    (for row in (rows dt))
+    (collect (iter (for d in row)
+               (for column from 0)
+               (collect
+                   (restart-case
+                       (data-table-coerce d (nth column (column-types dt)))
+                     (assume-column-is-string ()
+                       :report "assume this column is a string type and re-coerce"
+                       (setf (nth column (column-types dt)) 'string)
+                       (iter (for r in coerced-rows)
+                         (setf (nth column r)
+                               (princ-to-string (nth column r))))
+                       (data-table-coerce d 'string)))))
+      into coerced-rows)
+    (finally
+     (setf (rows dt) coerced-rows))))
 
 (defun %add-column-heading/type (dt name type index)
   "this function tries to handle their not being any
