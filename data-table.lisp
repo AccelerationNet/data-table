@@ -13,6 +13,9 @@
    #:data-table-to-alists #:data-table-to-plists
    #:make-sub-table #:data-table-data-compare
    #:get-data-table
+   #:*guessing-types-sample-size*
+   #:assume-column-is-string
+   #:bad-type-guess
 
    ;; clsql
    #:ensure-table-for-data-table
