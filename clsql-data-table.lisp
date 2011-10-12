@@ -115,7 +115,7 @@
    data-table table-name keys))
 
 (defun import-data-table-to-postgres (data-table table-name
-                                      &key (schema "public") excluded-columns
+                                      &key (schema "public") excluded-columns row-fn
                                       (column-name-transform #'english->postgres))
   (let ((cols (sql-escaped-column-names
                data-table :transform column-name-transform))
@@ -126,10 +126,12 @@
                     (for c in (column-names data-table))
                     (unless (member c excluded-columns :test #'string-equal)
                       (collect (clsql-helper:format-value-for-database d)))))
-      (exec
-       #?"INSERT INTO ${schema}.${table-name} (@{ cols }) VALUES ( @{data} )"))))
+      (when (or (null row-fn)
+                (funcall row-fn data schema table-name cols ))
+        (exec
+         #?"INSERT INTO ${schema}.${table-name} (@{ cols }) VALUES ( @{data} )")))))
 
-(defun import-data-table-to-mssql (data-table table-name &key excluded-columns)
+(defun import-data-table-to-mssql (data-table table-name &key excluded-columns  row-fn)
   (let ((cols (sql-escaped-column-names data-table :transform #'english->mssql))
         (cl-interpol:*list-delimiter* ",")
         (*print-pretty* nil))
@@ -138,14 +140,16 @@
                     (for c in (column-names data-table))
                     (unless (member c excluded-columns :test #'string-equal)
                       (collect (clsql-helper:format-value-for-database d)))))
-      (exec
-       #?"INSERT INTO dbo.${table-name} (@{ cols }) VALUES ( @{data} )"))))
+      (when (or (null row-fn)
+                (funcall row-fn data "dbo" table-name cols ))
+        (exec #?"INSERT INTO dbo.${table-name} (@{ cols }) VALUES ( @{data} )"))
+      )))
 
-(defun import-data-table (data-table table-name excluded-columns)
+(defun import-data-table (data-table table-name excluded-columns &key row-fn)
   (ecase (clsql-sys::database-underlying-type clsql-sys:*default-database*)
     (:mssql
      (import-data-table-to-mssql
-      data-table table-name :excluded-columns excluded-columns))
+      data-table table-name :excluded-columns excluded-columns :row-fn row-fn))
     (:postgresql
      (import-data-table-to-postgres
-      data-table table-name :excluded-columns excluded-columns))))
+      data-table table-name :excluded-columns excluded-columns :row-fn row-fn))))
