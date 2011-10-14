@@ -71,6 +71,7 @@
 
 (defun ensure-mssql-table-for-data-table (data-table table-name
                                           &key (should-have-serial-id "Id")
+                                          dry-run? print?
                                           excluded-columns)
   (let* ((dt data-table)
          (sql-types (mssql-db-types-for-data-table data-table))
@@ -83,13 +84,17 @@
                (unless (member c excluded-columns :test #'string-equal)
                  (body (format nil "~a ~a" c type))))
              #?"CREATE TABLE dbo.${table-name} ( ${(body)} );")))
-    (unless (has-table? table-name)
+    (when print?
+      (format T cmd))
+    (unless (or (has-table? table-name)
+                dry-run?)
       (exec cmd))
     cmd))
 
 
 (defun ensure-postgres-table-for-data-table (data-table table-name
                                              &key (should-have-serial-id "id") (schema "public")
+                                             dry-run? print?
                                              excluded-columns)
   (let* ((dt data-table))
     (sql-escape-column-names! dt)
@@ -102,12 +107,15 @@
                      (unless (member c excluded-columns :test #'string-equal)
                        (body (format nil "~a ~a" c (clsql-helper:db-type-from-lisp-type type)))))
                    #?"CREATE TABLE ${schema}.${table-name} ( ${(body)} );")))
-        (exec cmd)))))
+        (when print?
+          (format T cmd))
+        (unless dry-run?
+          (exec cmd))))))
 
 (defun ensure-table-for-data-table (data-table table-name &rest keys
                                     &key should-have-serial-id schema
-                                    excluded-columns)
-  (declare (ignore should-have-serial-id schema excluded-columns))
+                                    excluded-columns dry-run? print?)
+  (declare (ignore should-have-serial-id schema excluded-columns dry-run? print?))
   (apply
    (ecase (clsql-sys::database-underlying-type clsql-sys:*default-database*)
      (:mssql #'ensure-mssql-table-for-data-table)
