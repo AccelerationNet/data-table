@@ -17,7 +17,9 @@
    #:*guessing-types-sample-size*
    #:assume-column-is-string
    #:bad-type-guess
+   ;;duplicate column conditions/restarts
    #:duplicate-column-name
+   #:add-numeric-suffix #:add-numeric-suffix-to-all
 
    ;; clsql
    #:ensure-table-for-data-table

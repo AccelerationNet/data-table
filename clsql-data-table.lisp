@@ -129,27 +129,41 @@
 
 (defun check-for-duplicate-columns (data-table)
   "looks for duplicate column names, signaling 'duplicate-column-name errors with useful restarts"
-  (when-let ((dupes (duplicates (column-names data-table)
-                                :test #'string-equal)))
-    (flet ((numeric-suffix (d i)
-             ;;do this outside the iterate body because iter re-interprets 'count
-             (format nil "~a_~d" d (count d dupes :test #'string-equal :end i)))
-           (column-pos (d &optional (start 0))
-             (position d (column-names data-table) :test #'string= :start start)))
-      (iter
-        (for i from 1)
-        (for d in dupes)
-        (for new-name = (numeric-suffix d i))
-        (restart-case
-            (error 'duplicate-column-name :name d)
-          (add-numeric-suffix ()
-            :report (lambda (s)
-                      (format s "add a numeric suffix to make this name unique: ~a => ~a"
-                              d new-name))
-            ;;find and set the second occurence of d in the column names
-            (setf (nth (column-pos d (1+ (column-pos d)))
-                       (column-names data-table))
-                  new-name)))))))
+  (when-let ((dupes (duplicates (column-names data-table) :test #'string-equal)))
+    (labels
+        ((add-suffix (d i)
+           "returns the column with appropriate number suffix"
+           ;;need do this outside the iterate body because iter re-interprets 'count
+           (format nil "~a_~d" d (count d dupes :test #'string-equal :end i)))
+         (column-pos (d &optional (start 0))
+           "returns the position of this column name in the data table"
+           (position d (column-names data-table) :test #'string= :start start))
+         (second-position (d)
+           "returns the position of the second occurence of this column name in the data table"
+           (column-pos d (1+ (column-pos d))))
+         (%check-for-duplicate-columns (data-table dupes)
+           "signals 'duplicate-column-name errors for each dupe with useful restarts"
+           (iter
+             (for i from 1)
+             (for d in dupes)
+             (for new-name = (add-suffix d i))
+             (restart-case
+                 (error 'duplicate-column-name :name d)
+               (add-numeric-suffix ()
+                 :report (lambda (s)
+                           (format s "add a numeric suffix to make this name unique: ~a => ~a"
+                                   d new-name))
+                 (setf (nth (second-position d) (column-names data-table))
+                       new-name))))))
+      (restart-case
+          (%check-for-duplicate-columns data-table dupes)
+        (add-numeric-suffix-to-all ()
+          :report "add numeric suffixes to all duplicated columns"
+          (handler-bind ((duplicate-column-name
+                           #'(lambda (c)
+                               (declare (ignore c))
+                               (invoke-restart 'add-numeric-suffix))))
+            (%check-for-duplicate-columns data-table dupes)))))))
 
 (defun ensure-table-for-data-table (data-table table-name &rest keys
                                     &key should-have-serial-id schema
