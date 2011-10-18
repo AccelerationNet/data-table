@@ -112,10 +112,50 @@
         (unless dry-run?
           (exec cmd))))))
 
+(defun duplicates (sequence &key (test #'eql)
+                   &aux res seen)
+  "returns a list of duplicate elements"
+  (dolist (item sequence res)
+    (if (find item seen :test test)
+        (push item res)
+        (push item seen)))
+  res)
+
+(define-condition duplicate-column-name (error)
+  ((name :reader name :initarg :name)))
+(defmethod print-object ((o duplicate-column-name) s)
+  (print-unreadable-object (o s :type t :identity t)
+    (format s "Duplicate column name: ~a" (name o))))
+
+(defun check-for-duplicate-columns (data-table)
+  "looks for duplicate column names, signaling 'duplicate-column-name errors with useful restarts"
+  (when-let ((dupes (duplicates (column-names data-table)
+                                :test #'string-equal)))
+    (flet ((numeric-suffix (d i)
+             ;;do this outside the iterate body because iter re-interprets 'count
+             (format nil "~a_~d" d (count d dupes :test #'string-equal :end i)))
+           (column-pos (d &optional (start 0))
+             (position d (column-names data-table) :test #'string= :start start)))
+      (iter
+        (for i from 1)
+        (for d in dupes)
+        (for new-name = (numeric-suffix d i))
+        (restart-case
+            (error 'duplicate-column-name :name d)
+          (add-numeric-suffix ()
+            :report (lambda (s)
+                      (format s "add a numeric suffix to make this name unique: ~a => ~a"
+                              d new-name))
+            ;;find and set the second occurence of d in the column names
+            (setf (nth (column-pos d (1+ (column-pos d)))
+                       (column-names data-table))
+                  new-name)))))))
+
 (defun ensure-table-for-data-table (data-table table-name &rest keys
                                     &key should-have-serial-id schema
                                     excluded-columns dry-run? print?)
   (declare (ignore should-have-serial-id schema excluded-columns dry-run? print?))
+  (check-for-duplicate-columns data-table)
   (apply
    (ecase (clsql-sys::database-underlying-type clsql-sys:*default-database*)
      (:mssql #'ensure-mssql-table-for-data-table)

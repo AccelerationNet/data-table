@@ -1,5 +1,6 @@
 (cl:defpackage :data-table
   (:use :cl :cl-user :iterate)
+  (:shadowing-import-from #:alexandria #:when-let)
   (:export
    #:data-table #:column-names #:column-types #:rows
    #:number-of-columns #:number-of-rows
@@ -16,6 +17,7 @@
    #:*guessing-types-sample-size*
    #:assume-column-is-string
    #:bad-type-guess
+   #:duplicate-column-name
 
    ;; clsql
    #:ensure-table-for-data-table
