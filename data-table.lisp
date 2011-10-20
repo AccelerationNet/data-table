@@ -265,6 +265,9 @@
                   (setf (nth r sample) row))))
         (finally (return sample)))))
 
+(defparameter +largest-number+ (expt 2 63)
+  "this is the largest number that will be considered a number for data-type purposes.")
+
 (defun guess-types-for-data-table (data-table)
   (let ((trans (transpose-lists (sample-rows (rows data-table)))))
     (iter (for i upfrom 0)
@@ -281,6 +284,12 @@
                    (ctype (simplify-types (type-of val))) ;actual complex type
                    ;; sigh, get simple types
                    (type (cond
+                           ;; if we're a number, be sure we're within a range supported
+                           ;;by databases
+                           ((and (subtypep ctype 'number)
+                                 (not (< (* -1 +largest-number+)
+                                         val
+                                         +largest-number+))) 'string)
                            ((subtypep ctype 'integer) 'integer)
                            ((subtypep ctype 'double-float) 'double-float)
                            ((subtypep ctype 'string) 'string)
