@@ -190,8 +190,9 @@
                       (collect (clsql-helper:format-value-for-database d)))))
       (when (or (null row-fn)
                 (funcall row-fn data schema table-name cols ))
-        (exec
-         #?"INSERT INTO ${schema}.${table-name} (@{ cols }) VALUES ( @{data} )")))))
+        (with-simple-restart (skip "Skip importing this row's data: ~a ~a" row data)
+          (exec
+           #?"INSERT INTO ${schema}.${table-name} (@{ cols }) VALUES ( @{data} )"))))))
 
 (defun import-data-table-to-mssql (data-table table-name &key excluded-columns  row-fn)
   (let ((cols (sql-escaped-column-names data-table :transform #'english->mssql))
