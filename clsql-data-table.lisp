@@ -176,43 +176,35 @@
      (:postgresql #'ensure-postgres-table-for-data-table))
    data-table table-name keys))
 
-(defun import-data-table-to-postgres (data-table table-name
-                                      &key (schema "public") excluded-columns row-fn
-                                      (column-name-transform #'english->postgres))
-  (let ((cols (sql-escaped-column-names
-               data-table :transform column-name-transform))
-        (cl-interpol:*list-delimiter* ",")
-        (*print-pretty* nil))
-    (iter (for row in (rows data-table))
-      (for data = (iter (for d in row)
-                    (for c in (column-names data-table))
-                    (unless (member c excluded-columns :test #'string-equal)
-                      (collect (clsql-helper:format-value-for-database d)))))
-      (when (or (null row-fn)
-                (funcall row-fn data schema table-name cols ))
-        (with-simple-restart (skip "Skip importing this row's data: ~a ~a" row data)
-          (exec
-           #?"INSERT INTO ${schema}.${table-name} (@{ cols }) VALUES ( @{data} )"))))))
+(defun make-row-importer (data-table table-name &key schema excluded-columns row-fn)
+  (let* ((db-kind (clsql-sys::database-underlying-type clsql-sys:*default-database*))
+         (schema (or schema
+                     (ecase db-kind
+                       (:mssql "dbo")
+                       (:postgresql "public"))))
+         (cols (remove-if #'(lambda (c) (member c excluded-columns :test #'string-equal))
+                          (sql-escaped-column-names
+                           data-table
+                           :transform (ecase db-kind
+                                        (:mssql #'english->mssql)
+                                        (:postgresql #'english->postgres))))))
 
-(defun import-data-table-to-mssql (data-table table-name &key excluded-columns  row-fn)
-  (let ((cols (sql-escaped-column-names data-table :transform #'english->mssql))
-        (cl-interpol:*list-delimiter* ",")
-        (*print-pretty* nil))
-    (iter (for row in (rows data-table))
-      (for data = (iter (for d in row)
-                    (for c in (column-names data-table))
-                    (unless (member c excluded-columns :test #'string-equal)
-                      (collect (clsql-helper:format-value-for-database d)))))
-      (when (or (null row-fn)
-                (funcall row-fn data "dbo" table-name cols ))
-        (exec #?"INSERT INTO dbo.${table-name} (@{ cols }) VALUES ( @{data} )"))
-      )))
+    #'(lambda (row)
+        (let ((cl-interpol:*list-delimiter* ",")
+              (*print-pretty* nil)
+              (data (iter (for d in row)
+                      (for c in (column-names data-table))
+                      (for ty in (column-types data-table))
+                      (unless (member c excluded-columns :test #'string-equal)
+                        (collect (clsql-helper:format-value-for-database
+                                  (data-table-coerce (trim-and-nullify d)
+                                                     ty)))))))
+          (when (or (null row-fn)
+                    (funcall row-fn data schema table-name cols ))
+            (with-simple-restart (skip-row "Skip importing this row")
+              (exec #?"INSERT INTO ${schema}.${table-name} (@{ cols }) VALUES ( @{data} )")))))))
 
-(defun import-data-table (data-table table-name excluded-columns &key row-fn)
-  (ecase (clsql-sys::database-underlying-type clsql-sys:*default-database*)
-    (:mssql
-     (import-data-table-to-mssql
-      data-table table-name :excluded-columns excluded-columns :row-fn row-fn))
-    (:postgresql
-     (import-data-table-to-postgres
-      data-table table-name :excluded-columns excluded-columns :row-fn row-fn))))
+(defun import-data-table (data-table table-name excluded-columns &key schema row-fn)
+  (mapc (make-row-importer data-table table-name
+                           :excluded-columns excluded-columns :row-fn row-fn :schema schema)
+        (rows data-table)))
