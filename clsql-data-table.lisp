@@ -193,16 +193,29 @@
         (let ((cl-interpol:*list-delimiter* ",")
               (*print-pretty* nil)
               (data (iter (for d in row)
+                      (for column from 0)
                       (for c in (column-names data-table))
                       (for ty in (column-types data-table))
                       (unless (member c excluded-columns :test #'string-equal)
-                        (collect (clsql-helper:format-value-for-database
-                                  (data-table-coerce (trim-and-nullify d)
-                                                     ty)))))))
+                        (let ((d (trim-and-nullify d)))
+                          (collect
+                              (clsql-helper:format-value-for-database
+                               (restart-case (data-table-coerce d ty)
+                                 (assume-column-is-string ()
+                                   :report "assume this column is a string type and re-coerce"
+                                   (setf (nth column (column-types data-table)) 'string)
+                                   (data-table-coerce d 'string))))))))))
           (when (or (null row-fn)
-                    (funcall row-fn data schema table-name cols ))
-            (with-simple-restart (skip-row "Skip importing this row")
-              (exec #?"INSERT INTO ${schema}.${table-name} (@{ cols }) VALUES ( @{data} )")))))))
+                    (funcall row-fn data schema table-name cols))
+            (tagbody
+               try-again
+               (restart-case
+                   (exec #?"INSERT INTO ${schema}.${table-name} (@{ cols }) VALUES ( @{data} )")
+                 (try-again ()
+                   :report "Try running this insert again."
+                   (go try-again))
+                 (skip ()
+                   :report "Skip importing this row"))))))))
 
 (defun import-data-table (data-table table-name excluded-columns &key schema row-fn)
   (mapc (make-row-importer data-table table-name
