@@ -9,7 +9,7 @@
    #:coerce-data-table-of-strings-to-types #:add-column
    #:sql-escape-column-names! #:sql-escape-column-names #:english->mssql
    #:english->postgres #:ensure-mssql-table-for-data-table #:ensure-postgres-table-for-data-table
-   #:ensure-table-for-data-table #:import-data-table-to-mssql #:import-data-table-to-postgres
+   #:ensure-table-for-data-table
    #:alists-to-data-table #:plists-to-data-table
    #:data-table-to-alists #:data-table-to-plists
    #:make-sub-table #:data-table-data-compare

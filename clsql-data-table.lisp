@@ -217,7 +217,7 @@
                  (skip ()
                    :report "Skip importing this row"))))))))
 
-(defun import-data-table (data-table table-name excluded-columns &key schema row-fn)
+(defun import-data-table (data-table table-name &key excluded-columns schema row-fn)
   (mapc (make-row-importer data-table table-name
                            :excluded-columns excluded-columns :row-fn row-fn :schema schema)
         (rows data-table)))
