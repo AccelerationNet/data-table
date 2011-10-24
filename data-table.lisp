@@ -25,7 +25,7 @@
    #:ensure-table-for-data-table
    #:import-data-table
    #:get-data-table
-   ))
+   #:select-columns))
 
 (in-package :data-table)
 (cl-interpol:enable-interpol-syntax)
@@ -174,6 +174,25 @@
        :column-names (subs (column-names parent))
        :column-types (subs (column-types parent))
        :rows (mapcar #'subs rows)))))
+
+(defun select-columns (table column-names)
+  "returns a new data table with only the columns requested, but name"
+  (let ((indices (mapcar #'(lambda (name)
+                             (position name (column-names table)
+                                       :test #'string-equal))
+                         column-names)))
+    (make-instance 'data-table
+                   :column-names column-names
+                   :column-types (mapcar #'(lambda (idx)
+                                             (nth idx (column-types table)))
+                                         indices)
+                   :rows (mapcar #'(lambda (row)
+                                     (mapcar #'(lambda (idx) (nth idx row))
+                                             indices))
+                                 (rows table))
+                   )
+  
+    ))
 
 (defmethod data-table-data-compare (dt1 dt2 &key (test #'equalp) (key #'identity))
   "tries to comapre the data in two data-tables"
