@@ -157,3 +157,34 @@
           ( :a  8 :b  7 :c  9 )
           ( :a  12 :b  10 :c  11 ))
         pls)))
+
+(define-test data-table-select-columns
+  (let* ((dt (test-data-table))
+         (dt2 (select-columns dt '("first name" "id"))))
+
+    (assert-equal 2 (length (column-names dt2))
+     "only 2 columns")
+    (assert-equal '("first name" "id") (column-names dt2))
+    (assert-equal 2 (length (first (rows dt2)))
+     "rows only have 2 columns")
+    (assert-equal (length (rows dt)) (length (rows dt2))
+     "same number of rows as original")
+    (assert-equal '("Russ" "1") (first (rows dt2))
+     "has the right data")))
+
+(define-test data-table-sample-rows
+  (let* ((dt (test-data-table))
+         (sample (data-table::sample-rows (rows dt) :sample-size 5)))
+    (assert-eq 5 (length sample) "sample size should be 5")
+    (iter (for r in sample)
+      (assert-true (member r (rows dt) :test #'equal)
+       "every sample should be in the original"))))
+
+(define-test data-table-simplify-types
+  (iter (for (val type) in `((1 integer)
+                             (1.5d0 double-float)
+                             ("foo" string)
+                             (,(1+ data-table::+largest-number+) string)
+                             (,(- data-table::+largest-number+ 1) integer)
+                             (,(- 0 data-table::+largest-number+ 1) string)))
+    (assert-eq type (data-table::simplify-types val) type val)))
