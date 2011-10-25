@@ -278,23 +278,18 @@
   "how many rows to look at when trying to guess the types for each column of a data table")
 
 (defun sample-rows (rows &key (sample-size *guessing-types-sample-size*))
-  "get a subset of the rows using reservior sampling
-   TODO: seems inefficient because of list random access, investigate array.
-         could, in worse case be O[(row-count - sample-size)*row-count] rather than O[row-count]"
+  "get a subset of the rows using reservior sampling"
   (if (< (length rows) sample-size) rows
       (iter
-        (with sample = (list))
+        (with sample = (make-array sample-size :initial-element nil))
         (for row in rows)
         (for i from 0)
         (if (< i sample-size)
-            (push row sample)
+            (setf (aref sample i) row)
             (let ((r (random i)))
               (if (< r sample-size)
-                  (setf (nth r sample) row))))
-        (finally (return sample)))))
-
-(defparameter +largest-number+ (expt 2 63)
-  "this is the largest number that will be considered a number for data-type purposes.")
+                  (setf (aref sample r) row))))
+        (finally (return (coerce sample 'list))))))
 
 (defun guess-types-for-data-table (data-table)
   (let ((trans (transpose-lists (sample-rows (rows data-table)))))
