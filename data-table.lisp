@@ -177,7 +177,11 @@
        :rows (mapcar #'subs rows)))))
 
 (defun select-columns (table column-names)
-  "returns a new data table with only the columns requested, but name"
+  "returns a new data table with only the columns requested, but name
+   TODO: seems like this could iterate less, but perhaps not
+       (eg iter on rows and find in indices rather than iterating
+           on indices and nth'ing rows b/c we know there are always fewer
+           indices than columns)"
   (let ((indices (mapcar #'(lambda (name)
                              (position name (column-names table)
                                        :test #'string-equal))
@@ -272,7 +276,8 @@
   "how many rows to look at when trying to guess the types for each column of a data table")
 
 (defun sample-rows (rows &key (sample-size *guessing-types-sample-size*))
-  "get a subset of the rows using reservior sampling"
+  "get a subset of the rows using reservior sampling
+   TODO: seems really inefficient because of list random access, investigate array"
   (if (< (length rows) sample-size) rows
       (iter
         (with sample = (list))
@@ -303,6 +308,8 @@
                             val))
                    (ctype (simplify-types (type-of val))) ;actual complex type
                    ;; sigh, get simple types
+                   ;; TODO: seems like this is duplicating the simple-types function now
+                   ;; Why not move this up to there?
                    (type (cond
                            ;; if we're a number, be sure we're within a range supported
                            ;;by databases
@@ -349,7 +356,7 @@
       (error 'bad-type-guess :value d :column-type type :original-error e))))
 
 (defun ensure-column-data-types (dt)
-  "Given lacking data types of data-types only of strings, figure out
+  "Given missing data types or data-types only of strings, figure out
    what the data-types for the table should be set the slot on the data-table"
   (when (or (null (column-types dt)) (some #'null (column-types dt))
             (every #'(lambda (x) (subtypep x 'string)) (column-types dt)))
