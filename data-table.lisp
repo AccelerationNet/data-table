@@ -277,7 +277,8 @@
 
 (defun sample-rows (rows &key (sample-size *guessing-types-sample-size*))
   "get a subset of the rows using reservior sampling
-   TODO: seems really inefficient because of list random access, investigate array"
+   TODO: seems inefficient because of list random access, investigate array.
+         could, in worse case be O[(row-count - sample-size)*row-count] rather than O[row-count]"
   (if (< (length rows) sample-size) rows
       (iter
         (with sample = (list))
