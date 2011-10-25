@@ -248,12 +248,21 @@
                                  (collect missing-value)))))
            ))))
 
-(defun simplify-types (complex-type)
+(defparameter +largest-number+ (expt 2 63)
+  "this is the largest number that will be considered a number for data-type purposes.")
+
+(defun simplify-types (val &aux (complex-type (type-of val)))
   "try to get simple type definitions from complex ones"
-  (cond ((subtypep complex-type 'integer) 'integer)
-        ((subtypep complex-type 'double-float) 'double-float)
-        ((subtypep complex-type 'string) 'string)
-        (T complex-type)))
+  (cond
+    ;; if we're a number, be sure we're within a range supported
+    ;;by databases
+    ((and (subtypep complex-type 'number)
+          (not (< (* -1 +largest-number+) val +largest-number+)))
+     'string)
+    ((subtypep complex-type 'integer) 'integer)
+    ((subtypep complex-type 'double-float) 'double-float)
+    ((subtypep complex-type 'string) 'string)
+    (T complex-type)))
 
 (defun maybe-apply (fn &rest args)
   "Call a function, when it exists
@@ -300,21 +309,7 @@
                             (ignore-errors (parse-integer val))
                             (relaxed-parse-float val)
                             val))
-                   (ctype (simplify-types (type-of val))) ;actual complex type
-                   ;; sigh, get simple types
-                   ;; TODO: seems like this is duplicating the simple-types function now
-                   ;; Why not move this up to there?
-                   (type (cond
-                           ;; if we're a number, be sure we're within a range supported
-                           ;;by databases
-                           ((and (subtypep ctype 'number)
-                                 (not (< (* -1 +largest-number+)
-                                         val
-                                         +largest-number+))) 'string)
-                           ((subtypep ctype 'integer) 'integer)
-                           ((subtypep ctype 'double-float) 'double-float)
-                           ((subtypep ctype 'string) 'string)
-                           (T ctype))))
+                   (type (simplify-types val)))
               (cond
                 ((null current) (setf current type))
                 ((not (subtypep type current))
