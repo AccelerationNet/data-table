@@ -40,11 +40,12 @@
 (defun trim-and-nullify (s)
   "trims the whitespace from a string returning nil
    if trimming produces an empty string or the string 'nil' "
-  (when (and s (stringp s))
-    (let ((s (trim-whitespace s)))
-      (cond ((zerop (length s)) nil)
-	    ((string-equal s "nil") nil)
-	    (T s)))))
+  (typecase s
+    (string (let ((s (trim-whitespace s)))
+              (cond ((zerop (length s)) nil)
+                    ((string-equal s "nil") nil)
+                    (T s))))
+    (t s)))
 
 (defun plist-keys (pl) (iter (for (k v) on pl by #'cddr) (collect k)))
 (defun plist-values (pl &optional keys)
