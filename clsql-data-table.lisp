@@ -197,18 +197,19 @@
                       (for c in (column-names data-table))
                       (for ty in (column-types data-table))
                       (unless (member c excluded-columns :test #'string-equal)
-                        (let ((d (trim-and-nullify d)))
-                          (collect
-                              (clsql-helper:format-value-for-database
-                               (restart-case (data-table-coerce d ty)
-                                 (assume-column-is-string ()
-                                   :report "assume this column is a string type and re-coerce"
-                                   (setf (nth column (column-types data-table)) 'string)
-                                   (data-table-coerce d 'string))))))))))
+                        (when (stringp d)
+                          (setf d (trim-and-nullify d))))
+                      (collect
+                          (clsql-helper:format-value-for-database
+                           (restart-case (data-table-coerce d ty)
+                             (assume-column-is-string ()
+                               :report "assume this column is a string type and re-coerce"
+                               (setf (nth column (column-types data-table)) 'string)
+                               (data-table-coerce d 'string))))))))
           (when (or (null row-fn)
                     (funcall row-fn data schema table-name cols))
             (tagbody
-               try-again
+             try-again
                (restart-case
                    (exec #?"INSERT INTO ${schema}.${table-name} (@{ cols }) VALUES ( @{data} )")
                  (try-again ()
