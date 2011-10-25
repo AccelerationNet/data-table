@@ -177,27 +177,20 @@
        :rows (mapcar #'subs rows)))))
 
 (defun select-columns (table column-names)
-  "returns a new data table with only the columns requested, but name
-   TODO: seems like this could iterate less, but perhaps not
-       (eg iter on rows and find in indices rather than iterating
-           on indices and nth'ing rows b/c we know there are always fewer
-           indices than columns)"
+  "returns a new data table with only the columns requested, by name"
   (let ((indices (mapcar #'(lambda (name)
                              (position name (column-names table)
                                        :test #'string-equal))
                          column-names)))
+    (flet ((get-indices (list)
+             (iter (for item in list)
+               (for idx from 0)
+               (when (member idx indices)
+                 (collect item)))))
     (make-instance 'data-table
                    :column-names column-names
-                   :column-types (mapcar #'(lambda (idx)
-                                             (nth idx (column-types table)))
-                                         indices)
-                   :rows (mapcar #'(lambda (row)
-                                     (mapcar #'(lambda (idx) (nth idx row))
-                                             indices))
-                                 (rows table))
-                   )
-  
-    ))
+                   :column-types (get-indices (column-types table))
+                   :rows (mapcar #'get-indices (rows table))))))
 
 (defmethod data-table-data-compare (dt1 dt2 &key (test #'equalp) (key #'identity))
   "tries to comapre the data in two data-tables"
