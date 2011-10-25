@@ -63,9 +63,10 @@
         (if (subtypep type 'string)
             (iter (for v in (data-table-value dt :col-idx i))
               (maximizing (next-highest-power-of-two (length v)) into len)
-              (finally (if (< len 8000)
-                           #?"varchar (${len})"
-                           "text")))
+              (finally (return
+                         (if (< len 8000)
+                             #?"varchar (${len})"
+                             "text"))))
             (clsql-helper:db-type-from-lisp-type type)
             ))))
 
