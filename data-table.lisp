@@ -60,7 +60,8 @@
 (defun transpose-lists (list-of-lists)
   "Transpose a matrix represented as a list of lists.
   Example: (transpose '((a b c) (d e f))) => ((a d) (b e) (c f))."
-  (apply #'mapcar #'list list-of-lists))
+  (when list-of-lists
+    (apply #'mapcar #'list list-of-lists)))
 
 (defmethod relaxed-parse-float (str &key (type 'double-float))
   "trys to read a value we hope to be a floating point number returns nil on failure
