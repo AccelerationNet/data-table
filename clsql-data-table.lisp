@@ -60,15 +60,24 @@
   (iter (for type in (column-types dt))
     (for i upfrom 0)
     (collect
-        (if (subtypep type 'string)
-            (iter (for v in (data-table-value dt :col-idx i))
+	(cond
+	  ((subtypep type 'string)
+	   (iter (for v in (data-table-value dt :col-idx i))
               (maximizing (next-highest-power-of-two (length v)) into len)
               (finally (return
                          (if (< len 8000)
                              #?"varchar (${len})"
-                             "text"))))
-            (clsql-helper:db-type-from-lisp-type type)
-            ))))
+                             "text")))))
+	  ((subtypep type 'integer)
+	   (iter (for v in (data-table-value dt :col-idx i))
+	     (when v
+	       (maximizing v into biggest)
+	       (minimizing v into smallest))
+	     (finally (return
+			(if (or (and smallest (< smallest -2147483648))
+				(and biggest (< 2147483647 biggest)))
+			    "bigint" "int")))))
+	  (T (clsql-helper:db-type-from-lisp-type type))))))
 
 (defun ensure-mssql-table-for-data-table (data-table table-name
                                           &key (should-have-serial-id "Id")
