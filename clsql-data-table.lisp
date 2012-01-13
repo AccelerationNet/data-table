@@ -74,6 +74,9 @@
                                           &key (should-have-serial-id "Id")
                                           dry-run? print?
                                           excluded-columns)
+  (when (member should-have-serial-id (column-names data-table) :test #'string-equal)
+    (error "serial id name matches an existing column in the data table. You must rename one."))
+  (sql-escape-column-names! data-table :transform #'english->mssql)
   (let* ((dt data-table)
          (sql-types (mssql-db-types-for-data-table data-table))
          (cmd
@@ -97,6 +100,8 @@
                                              &key (should-have-serial-id "id") (schema "public")
                                              dry-run? print?
                                              excluded-columns)
+  (when (member should-have-serial-id (column-names data-table) :test #'string-equal)
+    (error "serial id name matches an existing column in the data table. You must rename one."))
   (let* ((dt data-table))
     (sql-escape-column-names! dt)
     (unless (clsql-sys:table-exists-p table-name)
