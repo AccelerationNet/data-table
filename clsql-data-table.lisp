@@ -54,7 +54,7 @@
   (clsql-helper:convert-to-clsql-datetime val))
 
 (defun next-highest-power-of-two (l)
-  (expt 2 (+ 1 (truncate (log l 2)))))
+  (expt 2 (1+ (truncate (log (max l 1) 2)))))
 
 (defun mssql-db-types-for-data-table (dt)
   (iter (for type in (column-types dt))
