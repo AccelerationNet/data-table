@@ -184,10 +184,8 @@
                                        :test #'string-equal))
                          column-names)))
     (flet ((get-indices (list)
-             (iter (for item in list)
-               (for idx from 0)
-               (when (member idx indices)
-                 (collect item)))))
+             (iter (for idx in indices)
+	       (collect (nth idx list)))))
     (make-instance 'data-table
                    :column-names column-names
                    :column-types (get-indices (column-types table))

@@ -160,16 +160,22 @@
 
 (define-test data-table-select-columns
   (let* ((dt (test-data-table))
-         (dt2 (select-columns dt '("first name" "id"))))
+         (dt2 (select-columns dt '("first name" "id")))
+	 (dt3 (select-columns dt '("id" "first name"))))
 
     (assert-equal 2 (length (column-names dt2))
      "only 2 columns")
-    (assert-equal '("first name" "id") (column-names dt2))
-    (assert-equal 2 (length (first (rows dt2)))
+        (assert-equal 2 (length (first (rows dt2)))
      "rows only have 2 columns")
     (assert-equal (length (rows dt)) (length (rows dt2))
      "same number of rows as original")
+
+    (assert-equal '("first name" "id") (column-names dt2))
+    (assert-equal '("id" "first name") (column-names dt3))
+
     (assert-equal '("Russ" "1") (first (rows dt2))
+     "has the right data")
+    (assert-equal '("1" "Russ") (first (rows dt3))
      "has the right data")))
 
 (define-test data-table-sample-rows
