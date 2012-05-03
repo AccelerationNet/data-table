@@ -180,14 +180,17 @@
 (defun select-columns (table column-names)
   "returns a new data table with only the columns requested, by name"
   (let ((indices (mapcar #'(lambda (name)
-                             (position name (column-names table)
-                                       :test #'string-equal))
+			     (or
+			      (position name (column-names table)
+                                       :test #'string-equal)
+			      (error "Cannot select column ~a; does not exist in the table"
+				     name)))
                          column-names)))
     (flet ((get-indices (list)
              (iter (for idx in indices)
 	       (collect (nth idx list)))))
     (make-instance 'data-table
-                   :column-names column-names
+                   :column-names (copy-list column-names)
                    :column-types (get-indices (column-types table))
                    :rows (mapcar #'get-indices (rows table))))))
 
