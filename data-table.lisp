@@ -6,7 +6,11 @@
    #:number-of-columns #:number-of-rows
    #:symbolize-column-names #:data-table-value #:overlay-region
    #:fill-in-missing-cells #:symbolize-column-names #:symbolize-column-names!
-   #:coerce-data-table-of-strings-to-types #:add-column
+   #:coerce-data-table-of-strings-to-types
+   #:coerce-value-for-output
+   #:coerce-data-table-values-for-output!
+   #:coerce-data-table-values-for-output
+   #:add-column
    #:sql-escape-column-names! #:sql-escape-column-names #:english->mssql
    #:english->postgres #:ensure-mssql-table-for-data-table #:ensure-postgres-table-for-data-table
    #:ensure-table-for-data-table
@@ -378,6 +382,37 @@
       into coerced-rows)
     (finally
      (setf (rows dt) coerced-rows))))
+
+(defvar *list-delimiter* ", ")
+
+(defmethod coerce-value-for-output ((dt data-table) column-name val
+                                    output-type
+                                    &aux (cl-interpol:*list-delimiter* *list-delimiter*))
+  "Coerce a data-tables-value to string"
+  (declare (ignore output-type))
+  (typecase val
+    (null "")
+    (string val)
+    (list
+     (let ((vals (iter (for v in val)
+                   (collect (coerce-value-to-string dt column-name v)))))
+       #?"@{vals}"))
+    (integer (princ-to-string val))
+    (real (format nil "~,2f" val))
+    (T (princ-to-string val))))
+
+(defun coerce-data-table-values-for-output! (dt &key output-type)
+  (setf (rows dt)
+        (coerce-data-table-values-for-output dt :output-type output-type)))
+
+(defun coerce-data-table-values-for-output (dt &key output-type)
+  (iter
+    (for row in (rows dt))
+    (collect
+        (iter
+          (for c in (column-names dt))
+          (for d in row)
+          (collect (coerce-value-for-output dt c d output-type))))))
 
 (defun %add-column-heading/type (dt name type index)
   "this function tries to handle their not being any
