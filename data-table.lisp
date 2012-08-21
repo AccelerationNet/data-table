@@ -383,12 +383,16 @@
     (finally
      (setf (rows dt) coerced-rows))))
 
-(defvar *list-delimiter* ", ")
+(defvar *list-delimiter* ", "
+  "What we will splice lists together with in coerce-value-for-output")
 
 (defmethod coerce-value-for-output ((dt data-table) column-name val
                                     output-type
                                     &aux (cl-interpol:*list-delimiter* *list-delimiter*))
-  "Coerce a data-tables-value to string"
+  "Coerce a data-tables-value to a specified output format.
+   By default only strings are supported.  This method is intended to be extended in
+   other applications to allow mutating to html / csv / etc
+  "
   (declare (ignore output-type))
   (typecase val
     (null "")
@@ -402,10 +406,12 @@
     (T (princ-to-string val))))
 
 (defun coerce-data-table-values-for-output! (dt &key output-type)
+  "Coerce for output all the values in all the rows and save the result to the rows slot"
   (setf (rows dt)
         (coerce-data-table-values-for-output dt :output-type output-type)))
 
 (defun coerce-data-table-values-for-output (dt &key output-type)
+  "Coerce for output all the values in all the rows and return the new rows"
   (iter
     (for row in (rows dt))
     (collect
