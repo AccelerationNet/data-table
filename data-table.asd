@@ -27,7 +27,7 @@
 (defmethod asdf:perform ((o asdf:test-op) (c (eql (find-system :data-table))))
   (asdf:oos 'asdf:load-op :data-table-test)
   (let ((*package* (find-package :data-table-test)))
-    (eval (read-from-string "(run-tests)"))))
+    (eval (read-from-string "(run-tests :all)"))))
 
 ;; Copyright (c) 2011 Russ Tyndall , Acceleration.net http://www.acceleration.net
 
