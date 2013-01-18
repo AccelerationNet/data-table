@@ -213,14 +213,14 @@
                       (for ty in (column-types data-table))
                       (unless (member c excluded-columns :test #'string-equal)
                         (when (stringp d)
-                          (setf d (trim-and-nullify d))))
-                      (collect
-                          (clsql-helper:format-value-for-database
-                           (restart-case (data-table-coerce d ty)
-                             (assume-column-is-string ()
-                               :report "assume this column is a string type and re-coerce"
-                               (setf (nth column (column-types data-table)) 'string)
-                               (data-table-coerce d 'string))))))))
+                          (setf d (trim-and-nullify d)))
+                        (collect
+                            (clsql-helper:format-value-for-database
+                             (restart-case (data-table-coerce d ty)
+                               (assume-column-is-string ()
+                                 :report "assume this column is a string type and re-coerce"
+                                 (setf (nth column (column-types data-table)) 'string)
+                                 (data-table-coerce d 'string)))))))))
           (when (or (null row-fn)
                     (funcall row-fn data schema table-name cols))
             (tagbody
