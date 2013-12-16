@@ -324,7 +324,7 @@
    (original-error :reader original-error :initarg :original-error)
    (value :reader value :initarg :value)))
 
-(defmethod print-object ((o bad-type-guess) (s stream))
+(defmethod print-object ((o bad-type-guess) s)
   (print-unreadable-object (o s :type t :identity t)
     (format s "Error coercing ~a to ~a;  ~a "
             (value o)
