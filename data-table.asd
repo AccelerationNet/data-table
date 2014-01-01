@@ -22,12 +22,12 @@
   :components ((:module :tests
 			:serial t
 			:components ((:file "data-table"))))
-  :depends-on (:data-table :lisp-unit))
+  :depends-on (:data-table :lisp-unit2))
 
 (defmethod asdf:perform ((o asdf:test-op) (c (eql (find-system :data-table))))
   (asdf:oos 'asdf:load-op :data-table-test)
   (let ((*package* (find-package :data-table-test)))
-    (eval (read-from-string "(run-tests :all)"))))
+    (eval (read-from-string "(run-tests)"))))
 
 ;; Copyright (c) 2011 Russ Tyndall , Acceleration.net http://www.acceleration.net
 
