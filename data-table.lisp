@@ -112,13 +112,14 @@
    save the new column names to the data table"
   (setf (column-names dt) (symbolize-column-names dt)))
 
-(defmethod data-table-value ((dt data-table) &key col-name row-idx col-idx)
+(defmethod data-table-value ((dt data-table) &key col-name col-idx row-idx row)
   "Extract a value or set of values from the data table
    can be used to pull a column of data, a row of data or a specific cell of data"
   (when (and col-name (null col-idx))
     (setf col-idx (position col-name (column-names dt) :test #'equalp)))
   (cond
     ((and col-idx row-idx) (elt (elt (rows dt) row-idx) col-idx))
+    ((and col-idx row) (elt row col-idx))
     (row-idx (elt (rows dt) row-idx))
     (col-idx (iter (for row in (rows dt))
                    (collect (elt row col-idx))))))
