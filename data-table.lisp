@@ -123,9 +123,8 @@
     ((and col-idx row-idx) (elt (elt (rows dt) row-idx) col-idx))
     ((and col-idx row) (elt row col-idx))
     (row-idx (elt (rows dt) row-idx))
-    (col-idx
-     (iter (for row in (rows dt))
-       (collect (elt row col-idx))))))
+    (col-idx (iter (for row in (rows dt))
+                   (collect (elt row col-idx))))))
 
 (defun %insert-value-in-list ( row index value )
   "build a new data row by splicing a value into the existing row"
@@ -163,9 +162,10 @@
        (ensure-rows)
        (setf (elt (rows dt) row-idx) (alexandria:ensure-list new)))
       (col-idx
-       (iter (for row-idx from 0 below (length (rows dt)))
-         (setf (data-table-value dt :col-idx col-idx :row-idx row-idx)
-               new))))))
+       (iter (for val in (alexandria:ensure-list new))
+             (for row-idx upfrom 0)
+             (setf (data-table-value dt :col-idx col-idx :row-idx row-idx)
+                   val))))))
 
 (defmethod make-sub-table (parent &key
                                   (lci 0) (uci (number-of-columns parent))
