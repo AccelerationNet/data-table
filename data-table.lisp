@@ -317,7 +317,9 @@
               (cond
                 ((null current) (setf current type))
                 ((not (subtypep type current))
-                 (setf current (if (subtypep type 'double-float)
+                 (setf current (if (or
+                                    (subtypep type 'double-float)
+                                    (subtypep type 'integer))
                                    'double-float
                                    'string)))))))
         (collect (or current 'string))))))
