@@ -36,8 +36,8 @@
 
 ;; Common utils
 (defparameter +common-white-space-trimbag+
-  '(#\space #\newline #\return #\tab
-    #\u00a0 ;; nbsp #\no-break_space
+  `(#\space #\newline #\return #\tab
+    ,(code-char #xa0) ;; no break space
     ))
 
 (defun trim-whitespace (s)
