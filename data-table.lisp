@@ -2,7 +2,9 @@
   (:use :cl :cl-user :iterate)
   (:shadowing-import-from #:alexandria #:when-let)
   (:export
-   #:data-table #:column-names #:column-types #:rows
+   #:data-table
+   #:column-names #:column-name #:column-types #:column-type #:column-index
+   #:rows
    #:number-of-columns #:number-of-rows
    #:symbolize-column-names #:data-table-value #:overlay-region
    #:fill-in-missing-cells #:symbolize-column-names #:symbolize-column-names!
@@ -325,7 +327,7 @@
         (collect (or current 'string))))))
 
 (define-condition bad-type-guess (error)
-  ((column-type :reader column-type :initarg :column-type)
+  ((expected-type :reader expected-type :initarg :expected-type)
    (original-error :reader original-error :initarg :original-error)
    (value :reader value :initarg :value)))
 
@@ -348,7 +350,7 @@
              (if (= 0 (length d)) nil d))
             (T (error "data-table-coerce doesnt support coersion of ~s to the type ~a" d type)))
     (error (e)
-      (error 'bad-type-guess :value d :column-type type :original-error e))))
+      (error 'bad-type-guess :value d :expected-type type :original-error e))))
 
 (defun ensure-column-data-types (dt)
   "Given missing data types or data-types only of strings, figure out
@@ -387,6 +389,30 @@
       into coerced-rows)
     (finally
      (setf (rows dt) coerced-rows))))
+
+(defun column-index (col dt)
+  (etypecase col
+    (null nil)
+    (integer col)
+    (string (position col (column-names dt) :test #'string-equal))))
+
+(defun column-type (col dt)
+  (alexandria:when-let ((idx (column-index col dt)))
+    (nth idx (column-types dt))))
+
+(defun (setf column-type) (new col dt)
+  (or (alexandria:when-let ((idx (column-index col dt)))
+        (setf (nth idx (column-types dt)) new))
+      (error "col didnt identify a column ~A" col)))
+
+(defun column-name (col dt)
+  (alexandria:when-let ((idx (column-index col dt)))
+    (nth idx (column-names dt))))
+
+(defun (setf column-name) (new col dt)
+  (or (alexandria:when-let ((idx (column-index col dt)))
+        (setf (nth idx (column-names dt)) new))
+      (error "col didnt identify a column ~A" col)))
 
 (defvar *list-delimiter* ", "
   "What we will splice lists together with in coerce-value-for-output")
