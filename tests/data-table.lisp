@@ -107,12 +107,12 @@
               :rows '((1 2 3 a b c)
                       (3 4 5 d e f)
                       (6 7 8 g h i))))
-         (man-sub
-           (make-instance
-            'data-table
-            :rows '((1 2 3)
-                    (3 4 5)
-                    (6 7 8))))
+         (dt2 (make-instance
+               'data-table
+               :rows '((1 2 3)
+                       (3 4 5)
+                       (6 7 8))))
+         (man-sub dt2)
          (dts1 (make-sub-table dt :lci 0 :uci 3))
          (dts2 (make-sub-table dt :lci 3 :uci 6)))
     (assert-equal 3 (number-of-columns dts1))
@@ -121,7 +121,8 @@
     (assert-equal '(x y z) (column-names dts2))
     (assert-equal 4 (data-table-value dts1 :col-idx 1 :row-idx 1))
     (assert-equal 'e (data-table-value dts2 :col-idx 1 :row-idx 1))
-    (assert-true (data-table-data-compare dts1 man-sub) dts1 man-sub)))
+    (assert-true (data-table-data-compare dts1 man-sub) dts1 man-sub)
+    (assert-equal (rows (make-sub-table dt2)) (rows dt2))))
 
 (define-test data-table-alist ()
   (let* ((als '(((:a . 1) (:b . 2) (:c . 3))

@@ -179,7 +179,11 @@
    uri - upper row index (as per subseq 1 beyond the row you want)
   "
   (let ((rows (subseq (rows parent) lri uri)))
-    (flet ((subs (l) (subseq l lci uci)))
+    (flet ((subs (l)
+             (loop for item in l
+                   for idx from 0
+                   when (and (>= idx lci) (< idx uci))
+                     collect item)))
       (make-instance
        'data-table
        :column-names (subs (column-names parent))
