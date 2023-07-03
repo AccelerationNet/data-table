@@ -74,7 +74,7 @@
 (defmethod relaxed-parse-float (str &key (type 'double-float))
   "trys to read a value we hope to be a floating point number returns nil on failure
 
-   The goal is to allow reading strings with spaces commas and dollar signs in them correctly 
+   The goal is to allow reading strings with spaces commas and dollar signs in them correctly
   "
   (etypecase str
     (null nil)
@@ -322,11 +322,12 @@
                    (type (simplify-types val)))
               (cond
                 ((null current) (setf current type))
+                ((eql 'string current) current)
                 ((not (subtypep type current))
                  (setf current (if (or
                                     (subtypep type 'double-float)
                                     (subtypep type 'integer))
-                                   'double-float
+                                     'double-float
                                    'string)))))))
         (collect (or current 'string))))))
 
@@ -398,6 +399,7 @@
   (etypecase col
     (null nil)
     (integer col)
+    (symbol (position col (column-names dt) :test #'eql))
     (string (position col (column-names dt) :test #'string-equal))))
 
 (defun column-type (col dt)
