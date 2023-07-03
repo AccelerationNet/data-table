@@ -68,7 +68,6 @@
                                  :rows '(("1" "2")
                                          ("3" "4")))))
 
-
     (overlay-region dt-copy1 dt-targ :row-idx 1 :col-idx 1)
     (assert-true 3 (number-of-columns dt-targ))
     (assert-true 3 (number-of-rows dt-targ))
@@ -93,6 +92,7 @@
       (assert-eql 5 (length row)))
     ;; Convert our random strings into types we can see
     (coerce-data-table-of-strings-to-types dt-targ)
+
     (assert-equal '(integer string string string integer)
         (column-types dt-targ))
     (assert-equal '(1 "2" "c" "d" 2)
@@ -204,3 +204,13 @@
                              (,(- data-table::+largest-number+ 1) integer)
                              (,(- 0 data-table::+largest-number+ 1) string)))
     (assert-eq type (data-table::simplify-types val) type val)))
+
+(define-test data-table-column-index ()
+  (let ((dt (test-data-table)))
+    (assert-eq 1 (column-index "last name" dt))
+
+    (symbolize-column-names! dt)
+
+    (assert-eq nil (column-index nil dt))
+    (assert-eq 3 (column-index 3 dt))
+    (assert-eq 1 (column-index :last-name dt))))

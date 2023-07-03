@@ -74,7 +74,7 @@
 (defmethod relaxed-parse-float (str &key (type 'double-float))
   "trys to read a value we hope to be a floating point number returns nil on failure
 
-   The goal is to allow reading strings with spaces commas and dollar signs in them correctly 
+   The goal is to allow reading strings with spaces commas and dollar signs in them correctly
   "
   (etypecase str
     (null nil)
@@ -306,29 +306,41 @@
                   (setf (aref sample r) row))))
         (finally (return (coerce sample 'list))))))
 
+(defun assign-types-to-column (column-values)
+  "Given a list of values `column-values', return a unique list of types present in that list."
+  (let ((types))
+    (iter (for val in column-values)
+      (alexandria:when-let (type (cond
+                                   ((null val) nil)
+                                   ((not (stringp val))
+                                    (simplify-types val))
+                                   ((not (trim-and-nullify val))
+                                    'string)
+                                   (t
+                                    (alexandria:if-let (type (simplify-types
+                                                              (or (maybe-apply '%to-clsql-date val)
+                                                                  (ignore-errors (parse-integer val))
+                                                                  (relaxed-parse-float val)
+                                                                  val)))
+                                      type
+                                      'string))))
+        (unless (member type types)
+          (push type types))))
+      types))
+
 (defun guess-types-for-data-table (data-table)
+  "Guess the types of each column of data in a data-table."
   (let ((trans (transpose-lists (sample-rows (rows data-table)))))
-    (iter (for i upfrom 0)
-      (for col in trans)
-      (let (current)
-        (iter (for val in col)
-          (when (and val (not (stringp val)))
-            (setf current (type-of val)))
-          (when (and val (stringp val) (trim-and-nullify val))
-            (let* ((val (or (maybe-apply '%to-clsql-date val)
-                            (ignore-errors (parse-integer val))
-                            (relaxed-parse-float val)
-                            val))
-                   (type (simplify-types val)))
-              (cond
-                ((null current) (setf current type))
-                ((not (subtypep type current))
-                 (setf current (if (or
-                                    (subtypep type 'double-float)
-                                    (subtypep type 'integer))
-                                   'double-float
-                                   'string)))))))
-        (collect (or current 'string))))))
+    (iter (for col in trans)
+      (collect (let ((types (assign-types-to-column col)))
+                 (cond
+                   ((member 'string types)
+                    'string)
+                   ((equal '(integer) types)
+                    'integer)
+                   ((intersection '(double-float ratio integer) types)
+                    'double-float)
+                   (t 'string)))))))
 
 (define-condition bad-type-guess (error)
   ((expected-type :reader expected-type :initarg :expected-type)
@@ -398,6 +410,7 @@
   (etypecase col
     (null nil)
     (integer col)
+    (symbol (position col (column-names dt) :test #'eql))
     (string (position col (column-names dt) :test #'string-equal))))
 
 (defun column-type (col dt)
